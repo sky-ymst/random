@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ランダム送り先決め</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f7; --panel:#ffffff; --ink:#1b2430; --sub:#5d6b7e;
+    --line:#d5dde8; --accent:#2f5bea; --accent-ink:#ffffff; --hit:#ffd84a; --hit-ink:#1b2430;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#10151d; --panel:#1a212c; --ink:#eef2f7; --sub:#97a5b8; --line:#2c3646; --accent:#6c8cff; --accent-ink:#0d1220; }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+    line-height:1.6; padding:24px 16px 64px;
+  }
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-size:clamp(28px,5vw,44px);font-weight:900;margin:0 0 4px;letter-spacing:.02em}
+  .lead{margin:0 0 24px;color:var(--sub)}
+  .layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+  @media (max-width:800px){.layout{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .panel h2{font-size:16px;margin:0 0 4px}
+  .hint{font-size:13px;color:var(--sub);margin:0 0 10px}
+  textarea{
+    width:100%;height:340px;resize:vertical;font:inherit;font-size:15px;color:var(--ink);
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;
+  }
+  textarea:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
+  .count{font-size:14px;color:var(--sub)}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px}
+  button:hover{border-color:var(--accent)}
+  .go{
+    width:100%;font-size:clamp(22px,4vw,30px);font-weight:900;padding:18px;border:0;
+    background:var(--accent);color:var(--accent-ink);border-radius:14px;
+    box-shadow:0 5px 0 rgba(0,0,0,.25);transition:transform .08s, box-shadow .08s;
+  }
+  .go:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+  .go:disabled{opacity:.5;cursor:not-allowed}
+  .result-head{display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px;min-height:36px}
+  .result-head h2{margin:0;font-size:16px}
+  .cols{display:flex;gap:8px;font-size:12px;color:var(--sub);padding:0 12px 4px}
+  .cols span{flex:1;text-align:center}
+  .cols span:nth-child(2){flex:0 0 28px}
+  .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;list-style:none;margin:0;padding:0}
+  .item{
+    display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;animation:pop .25s ease-out both;
+  }
+  .name{
+    flex:1;text-align:center;font-weight:700;font-size:18px;padding:4px 6px;border-radius:8px;
+    background:var(--bg);min-height:34px;overflow-wrap:anywhere;
+  }
+  .name.to{background:var(--hit);color:var(--hit-ink)}
+  .arrow{flex:0 0 28px;text-align:center;color:var(--accent);font-weight:900;font-size:20px}
+  .empty-msg{color:var(--sub);padding:28px 0;text-align:center}
+  @keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.item{animation:none}.go{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ランダム送り先決め</h1>
+  <p class="lead">ボタンを押すと、全員が「送る相手」を1人ずつ、「受け取る相手」も1人ずつ持つ組み合わせが決まります。余る人はいません。自分自身に当たることもありません。</p>
+
+  <div class="layout">
+    <section class="panel">
+      <h2>名前リスト</h2>
+      <p class="hint">1行に1人。編集すると自動で保存されます。</p>
+      <textarea id="names" spellcheck="false" aria-label="名前リスト"></textarea>
+      <div class="row">
+        <span class="count" id="count"></span>
+        <button type="button" id="reset">1〜41に戻す</button>
+      </div>
+    </section>
+
+    <section>
+      <button type="button" class="go" id="go">送り先を決める</button>
+      <div class="result-head">
+        <h2 id="summary"></h2>
+        <button type="button" id="copy" hidden>結果をコピー</button>
+      </div>
+      <div class="cols" id="cols" hidden><span>送る人</span><span></span><span>受け取る人</span></div>
+      <ol class="list" id="list"></ol>
+      <p class="empty-msg" id="placeholder">結果はここに表示されます。</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "random-pairs-names";
+  var DEFAULT_COUNT = 41;
+  var $ = function(id){ return document.getElementById(id); };
+  var ta = $("names"), countEl = $("count"), goBtn = $("go"),
+      listEl = $("list"), summary = $("summary"), copyBtn = $("copy"),
+      ph = $("placeholder"), cols = $("cols");
+  var last = [];
+
+  function defaults(){
+    var a = []; for (var i = 1; i <= DEFAULT_COUNT; i++) a.push(String(i));
+    return a.join("\n");
+  }
+  function load(){
+    try { var v = localStorage.getItem(KEY); if (v !== null) return v; } catch(e){}
+    return defaults();
+  }
+  function save(){ try { localStorage.setItem(KEY, ta.value); } catch(e){} }
+  function getNames(){
+    return ta.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  function updateCount(){
+    var n = getNames().length;
+    countEl.textContent = n + "人";
+    goBtn.disabled = n < 2;
+  }
+  function shuffle(a){
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var r = new Uint32Array(1);
+      crypto.getRandomValues(r);
+      var j = r[0] % (i + 1);
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  // 全員を1本の輪にする：シャッフルした順に、各自が次の人へ送り、最後の人は最初の人へ送る。
+  // これで全員が「ちょうど1人に送り」「ちょうど1人から受け取る」。自分宛てにもならない。
+  function make(){
+    var names = getNames();
+    var idx = shuffle(names.map(function(_, i){ return i; }));
+    var to = new Array(names.length);
+    for (var k = 0; k < idx.length; k++) to[idx[k]] = idx[(k + 1) % idx.length];
+    return names.map(function(n, i){ return [n, names[to[i]]]; });
+  }
+  function nameEl(text, cls){
+    var d = document.createElement("span");
+    d.className = "name" + (cls ? " " + cls : "");
+    d.textContent = text;
+    return d;
+  }
+  function render(rows){
+    listEl.innerHTML = "";
+    ph.hidden = true; cols.hidden = false;
+    rows.forEach(function(r, i){
+      var li = document.createElement("li");
+      li.className = "item";
+      li.style.animationDelay = (i * 30) + "ms";
+      var ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "→";
+      li.appendChild(nameEl(r[0])); li.appendChild(ar); li.appendChild(nameEl(r[1], "to"));
+      listEl.appendChild(li);
+    });
+    summary.textContent = rows.length + "人 全員決定";
+    copyBtn.hidden = false;
+  }
+
+  ta.value = load();
+  updateCount();
+
+  ta.addEventListener("input", function(){ save(); updateCount(); });
+  $("reset").addEventListener("click", function(){
+    if (confirm("名前リストを 1〜" + DEFAULT_COUNT + " に戻しますか？")) {
+      ta.value = defaults(); save(); updateCount();
+    }
+  });
+  goBtn.addEventListener("click", function(){
+    last = make();
+    render(last);
+  });
+  copyBtn.addEventListener("click", function(){
+    var text = last.map(function(r){ return r[0] + " → " + r[1]; }).join("\n");
+    var done = function(){ copyBtn.textContent = "コピーしました"; setTimeout(function(){ copyBtn.textContent = "結果をコピー"; }, 1500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done);
+  });
+})();
+</script>
+</body>
+</html>
