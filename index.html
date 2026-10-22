@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ランダム送り先決め</title>
+<title>classroom</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -20,16 +20,13 @@
   body{
     background:var(--bg); color:var(--ink);
     font-family:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
-    line-height:1.6; padding:24px 16px 64px;
+    line-height:1.6; padding:32px 16px 64px;
   }
   .wrap{max-width:1040px;margin:0 auto}
-  h1{font-size:clamp(28px,5vw,44px);font-weight:900;margin:0 0 4px;letter-spacing:.02em}
-  .lead{margin:0 0 24px;color:var(--sub)}
   .layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
   @media (max-width:800px){.layout{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .panel h2{font-size:16px;margin:0 0 4px}
-  .hint{font-size:13px;color:var(--sub);margin:0 0 10px}
+  .panel h2{font-size:16px;margin:0 0 10px}
   textarea{
     width:100%;height:340px;resize:vertical;font:inherit;font-size:15px;color:var(--ink);
     background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;
@@ -46,8 +43,7 @@
   }
   .go:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
   .go:disabled{opacity:.5;cursor:not-allowed}
-  .result-head{display:flex;justify-content:space-between;align-items:center;margin:20px 0 10px;min-height:36px}
-  .result-head h2{margin:0;font-size:16px}
+  .tools{display:flex;justify-content:flex-end;margin:14px 0 10px;min-height:36px}
   .cols{display:flex;gap:8px;font-size:12px;color:var(--sub);padding:0 12px 4px}
   .cols span{flex:1;text-align:center}
   .cols span:nth-child(2){flex:0 0 28px}
@@ -62,21 +58,17 @@
   }
   .name.to{background:var(--hit);color:var(--hit-ink)}
   .arrow{flex:0 0 28px;text-align:center;color:var(--accent);font-weight:900;font-size:20px}
-  .empty-msg{color:var(--sub);padding:28px 0;text-align:center}
   @keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.item{animation:none}.go{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>ランダム送り先決め</h1>
-  <p class="lead">ボタンを押すと、全員が「送る相手」を1人ずつ、「受け取る相手」も1人ずつ持つ組み合わせが決まります。余る人はいません。自分自身に当たることもありません。</p>
 
   <div class="layout">
     <section class="panel">
-      <h2>名前リスト</h2>
-      <p class="hint">1行に1人。編集すると自動で保存されます。</p>
-      <textarea id="names" spellcheck="false" aria-label="名前リスト"></textarea>
+      <h2>名前</h2>
+      <textarea id="names" spellcheck="false" aria-label="名前リスト（1行に1人）"></textarea>
       <div class="row">
         <span class="count" id="count"></span>
         <button type="button" id="reset">1〜41に戻す</button>
@@ -84,14 +76,10 @@
     </section>
 
     <section>
-      <button type="button" class="go" id="go">送り先を決める</button>
-      <div class="result-head">
-        <h2 id="summary"></h2>
-        <button type="button" id="copy" hidden>結果をコピー</button>
-      </div>
+      <button type="button" class="go" id="go">決める</button>
+      <div class="tools"><button type="button" id="copy" hidden>コピー</button></div>
       <div class="cols" id="cols" hidden><span>送る人</span><span></span><span>受け取る人</span></div>
       <ol class="list" id="list"></ol>
-      <p class="empty-msg" id="placeholder">結果はここに表示されます。</p>
     </section>
   </div>
 </div>
@@ -102,8 +90,7 @@
   var DEFAULT_COUNT = 41;
   var $ = function(id){ return document.getElementById(id); };
   var ta = $("names"), countEl = $("count"), goBtn = $("go"),
-      listEl = $("list"), summary = $("summary"), copyBtn = $("copy"),
-      ph = $("placeholder"), cols = $("cols");
+      listEl = $("list"), copyBtn = $("copy"), cols = $("cols");
   var last = [];
 
   function defaults(){
@@ -134,7 +121,7 @@
     return a;
   }
   // 全員を1本の輪にする：シャッフルした順に、各自が次の人へ送り、最後の人は最初の人へ送る。
-  // これで全員が「ちょうど1人に送り」「ちょうど1人から受け取る」。自分宛てにもならない。
+  // 全員が1人に送り、1人から受け取る。自分宛てにもならない。
   function make(){
     var names = getNames();
     var idx = shuffle(names.map(function(_, i){ return i; }));
@@ -150,7 +137,7 @@
   }
   function render(rows){
     listEl.innerHTML = "";
-    ph.hidden = true; cols.hidden = false;
+    cols.hidden = false;
     rows.forEach(function(r, i){
       var li = document.createElement("li");
       li.className = "item";
@@ -159,7 +146,6 @@
       li.appendChild(nameEl(r[0])); li.appendChild(ar); li.appendChild(nameEl(r[1], "to"));
       listEl.appendChild(li);
     });
-    summary.textContent = rows.length + "人 全員決定";
     copyBtn.hidden = false;
   }
 
@@ -168,7 +154,7 @@
 
   ta.addEventListener("input", function(){ save(); updateCount(); });
   $("reset").addEventListener("click", function(){
-    if (confirm("名前リストを 1〜" + DEFAULT_COUNT + " に戻しますか？")) {
+    if (confirm("1〜" + DEFAULT_COUNT + " に戻しますか？")) {
       ta.value = defaults(); save(); updateCount();
     }
   });
@@ -178,7 +164,7 @@
   });
   copyBtn.addEventListener("click", function(){
     var text = last.map(function(r){ return r[0] + " → " + r[1]; }).join("\n");
-    var done = function(){ copyBtn.textContent = "コピーしました"; setTimeout(function(){ copyBtn.textContent = "結果をコピー"; }, 1500); };
+    var done = function(){ copyBtn.textContent = "コピーしました"; setTimeout(function(){ copyBtn.textContent = "コピー"; }, 1500); };
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(done);
   });
 })();
